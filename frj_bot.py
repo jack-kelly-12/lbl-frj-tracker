@@ -135,13 +135,13 @@ def get_statcast():
 
     today = datetime.now().date()
     if statcast_full.empty:
-        start_date = '2025-03-27'
+    start_date = '2025-03-27'
     else:
         last_date = statcast_full['game_date'].max()
         if last_date >= today:
             logger.info("Data is up to date.")
             return statcast_full
-        start_date = last_date + timedelta(days=1)
+        start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
 
     logger.info(f"Fetching new data from {start_date} to {today}")
     try:
