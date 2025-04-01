@@ -22,12 +22,9 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Get environment variables with defaults
-URL_FANGRAPHS = os.environ.get(
-    "URL_FANGRAPHS", "https://www.fangraphs.com/guts.aspx?type=cn")
-
+URL_FANGRAPHS = "https://www.fangraphs.com/guts.aspx?type=cn"
 # Convert string of comma-separated IDs to list of integers
-LABELED_PLAYERS_STR = os.environ.get(
-    "LABELED_PLAYERS", "596142,621439,669261,583871,666135,607054,571745,543877,456781")
+LABELED_PLAYERS_STR = "596142,621439,669261,583871,666135,607054,571745,543877,456781"
 LABELED_PLAYERS = [int(player_id.strip())
                    for player_id in LABELED_PLAYERS_STR.split(',')]
 
