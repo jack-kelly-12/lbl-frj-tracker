@@ -141,12 +141,14 @@ def get_statcast():
         if last_date >= today:
             logger.info("Data is up to date.")
             return statcast_full
+        # Convert last_date to string format, not strftime
         start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
 
-    logger.info(f"Fetching new data from {start_date} to {today}")
+    logger.info(
+        f"Fetching new data from {start_date} to {today.strftime('%Y-%m-%d')}")
     try:
-        sc = statcast(start_date.strftime('%Y-%m-%d'),
-                      today.strftime('%Y-%m-%d'))
+        # Use string directly without calling strftime again - start_date is already a string
+        sc = statcast(start_date, today.strftime('%Y-%m-%d'))
         if sc.empty:
             logger.info("No new data available.")
             return statcast_full
