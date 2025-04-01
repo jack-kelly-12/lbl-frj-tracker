@@ -135,7 +135,7 @@ def get_statcast():
 
     today = datetime.now().date()
     if statcast_full.empty:
-    start_date = '2025-03-27'
+        start_date = '2025-03-27'
     else:
         last_date = statcast_full['game_date'].max()
         if last_date >= today:
