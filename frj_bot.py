@@ -365,7 +365,7 @@ def main():
         logger.info("Running in GitHub Actions environment")
 
     # Get data
-    sc = get_statcast()
+    sc = get_yesterday_data()
     if sc.empty:
         logger.error("No data available. Exiting.")
         return
