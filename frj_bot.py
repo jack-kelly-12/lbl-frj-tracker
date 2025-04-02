@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Get environment variables with defaults
 URL_FANGRAPHS = "https://www.fangraphs.com/guts.aspx?type=cn"
 # Convert string of comma-separated IDs to list of integers
-LABELED_PLAYERS_STR = "596142,621439,669261,583871,666135,607054,571745,543877,456781"
+LABELED_PLAYERS_STR = "607054,621439,596142,669261,571745,543877,456781,593871,596115,664034,680777,621043,664056"
 LABELED_PLAYERS = [int(player_id.strip())
                    for player_id in LABELED_PLAYERS_STR.split(',')]
 
@@ -119,41 +119,29 @@ def process_games(games):
     return df
 
 
+def get_yesterday_data() -> pd.DataFrame:
+    sc = get_statcast()
+    sc = sc[sc.description == 'hit_into_play']
+    sc['game_date'] = pd.to_datetime(sc['game_date'])
+    sc['launch_speed_adj'] = sc['launch_speed'] + 2
+    sc['video'] = sc['playId'].apply(
+        lambda x: f'https://baseballsavant.mlb.com/sporty-videos?playId={x}')
+
+    player_names = get_player_names(sc['batter'].unique())
+    sc['batter_name'] = sc['batter'].map(player_names)
+    return sc
+
+
 def get_statcast():
-    data_dir = os.environ.get("DATA_DIR", ".")
-    statcast_csv_path = os.path.join(data_dir, 'statcast.csv')
-
-    try:
-        statcast_full = pd.read_csv(statcast_csv_path)
-        # Use a more flexible parsing approach
-        statcast_full['game_date'] = pd.to_datetime(
-            statcast_full['game_date'], format='mixed').dt.date
-    except FileNotFoundError:
-        logger.info(
-            f"No existing statcast.csv found at {statcast_csv_path}. Creating a new one.")
-        statcast_full = pd.DataFrame()
-
     today = datetime.now().date()
-    if statcast_full.empty:
-        start_date = '2025-03-27'
-    else:
-        last_date = statcast_full['game_date'].max()
-        if last_date >= today:
-            logger.info("Data is up to date.")
-            return statcast_full
-        # Convert last_date to string format, not strftime
-        start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
-
-    logger.info(
-        f"Fetching new data from {start_date} to {today.strftime('%Y-%m-%d')}")
+    yesterday = today - timedelta(days=1)
     try:
-        # Use string directly without calling strftime again - start_date is already a string
-        sc = statcast(start_date, today.strftime('%Y-%m-%d'))
+        sc = statcast(yesterday.strftime('%Y-%m-%d'),
+                      yesterday.strftime('%Y-%m-%d'))
         if sc.empty:
             logger.info("No new data available.")
             return statcast_full
 
-        # Ensure consistent date format in new data
         sc['game_date'] = pd.to_datetime(sc['game_date']).dt.date
         games = sc['game_pk'].unique()
         api = process_games(games)
@@ -165,7 +153,6 @@ def get_statcast():
 
         statcast_full = pd.concat(
             [statcast_full, sc_w_playid], ignore_index=True).drop_duplicates()
-        statcast_full.to_csv(statcast_csv_path, index=False)
         logger.info("Statcast data updated successfully.")
     except Exception as e:
         logger.error(f"Error fetching or processing new data: {e}")
@@ -180,32 +167,6 @@ def get_player_names(player_ids):
     except Exception as e:
         logger.error(f"Failed to lookup player names: {e}")
         return {}
-
-
-def get_yesterday_data() -> pd.DataFrame:
-    """Load and preprocess yesterday's Statcast data."""
-    try:
-        sc = get_statcast()
-        sc = sc[sc.description == 'hit_into_play']
-        sc['game_date'] = pd.to_datetime(sc['game_date'])
-
-        data_date_str = os.environ.get("DATA_DATE", "")
-        if data_date_str:
-            target_date = datetime.strptime(data_date_str, '%Y-%m-%d').date()
-        else:
-            target_date = datetime.now().date() - timedelta(days=1)
-
-        sc = sc[sc['game_date'].dt.date == target_date]
-        sc['launch_speed_adj'] = sc['launch_speed'] + 2
-        sc['video'] = sc['playId'].apply(
-            lambda x: f'https://baseballsavant.mlb.com/sporty-videos?playId={x}')
-
-        player_names = get_player_names(sc['batter'].unique())
-        sc['batter_name'] = sc['batter'].map(player_names)
-        return sc
-    except FileNotFoundError:
-        logger.error("statcast.csv file not found")
-        return pd.DataFrame()
 
 
 def scrape_woba_weights(url: str = URL_FANGRAPHS) -> Dict[str, float]:
@@ -237,34 +198,6 @@ def scrape_woba_weights(url: str = URL_FANGRAPHS) -> Dict[str, float]:
         raise
 
 
-def get_added_barrels(sc: pd.DataFrame, clients: bool) -> pd.DataFrame:
-    """Get batted balls that become barrels after adjustment."""
-    sc['is_barrel'] = (sc['launch_speed'] >= 98) & (sc['launch_angle'].between(4, 50)) & \
-                      (sc['launch_speed'] * 2 - sc['launch_angle'] > 116)
-    sc['is_barrel_adj'] = (sc['launch_speed_adj'] >= 98) & (sc['launch_angle'].between(4, 50)) & \
-                          (sc['launch_speed_adj'] *
-                           2 - sc['launch_angle'] > 116)
-    if clients:
-        result = sc[(~sc['is_barrel']) & (sc['is_barrel_adj'])
-                    & (sc['batter'].isin(LABELED_PLAYERS))]
-    else:
-        result = sc[(~sc['is_barrel']) & (sc['is_barrel_adj'])]
-    return result[COLUMNS]
-
-
-def get_would_be_frjs(sc: pd.DataFrame, clients: bool) -> pd.DataFrame:
-    """Get batted balls that would be 'FRJs' after adjustment."""
-    sc['hr_probability'] = (sc['hr_probability'] * 100).round(2)
-    sc['hr_probability_adj'] = (sc['hr_probability_adj'] * 100).round(2)
-    if clients:
-        result = sc[(sc['batter'].isin(LABELED_PLAYERS)) & (sc['events'] != 'home_run') &
-                    sc['hr_probability_adj'].between(50, 60)]
-    else:
-        result = sc[(sc['events'] != 'home_run') &
-                    sc['hr_probability_adj'].between(50, 60)]
-    return result[COLUMNS]
-
-
 def get_frjs(sc: pd.DataFrame) -> pd.DataFrame:
     df = sc[sc['events'].isin(['home_run'])]
     left_or_right = df[(df['hit_location'] == 7) | (df['hit_location'] == 9)]
@@ -272,7 +205,9 @@ def get_frjs(sc: pd.DataFrame) -> pd.DataFrame:
     center = df[(df['hit_location'] == 8)]
     center = center[center['hit_distance_sc'] <= 380]
     result = pd.concat([left_or_right, center])
-    result = result[result['batter'].isin(LABELED_PLAYERS)]
+    result = result[result['batter'].isin(LABELED_PLAYERS) |
+                    ((result['inning_topbot'] == 'Top') & (result['away_team'] == 'SD')) |
+                    ((result['inning_topbot'] == 'Bot') & (result['home_team'] == 'SD'))]
     return result[COLUMNS]
 
 
@@ -284,7 +219,9 @@ def get_action_items(sc: pd.DataFrame) -> pd.DataFrame:
     center = df[(df['hit_location'] == 8)]
     center = center[center['hit_distance_sc'] >= 380]
     result = pd.concat([left_or_right, center])
-    result = result[~result['batter'].isin(LABELED_PLAYERS)]
+    result = result[~(result['batter'].isin(LABELED_PLAYERS) |
+                      ((result['inning_topbot'] == 'Top') & (result['away_team'] == 'SD')) |
+                      ((result['inning_topbot'] == 'Bot') & (result['home_team'] == 'SD')))]
     return result[COLUMNS]
 
 
@@ -436,7 +373,7 @@ def main():
         logger.info("Running in GitHub Actions environment")
 
     # Get data
-    sc = get_yesterday_data()
+    sc = get_statcast()
     if sc.empty:
         logger.error("No data available. Exiting.")
         return
