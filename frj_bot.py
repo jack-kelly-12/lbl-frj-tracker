@@ -133,14 +133,8 @@ def get_yesterday_data() -> pd.DataFrame:
 
 
 def get_statcast():
-    today = datetime.now().date()
-    yesterday = today - timedelta(days=1)
     try:
-        sc = statcast(yesterday.strftime('%Y-%m-%d'),
-                      yesterday.strftime('%Y-%m-%d'))
-        if sc.empty:
-            logger.info("No new data available.")
-            return statcast_full
+        sc = statcast()
 
         sc['game_date'] = pd.to_datetime(sc['game_date']).dt.date
         games = sc['game_pk'].unique()
@@ -151,13 +145,11 @@ def get_statcast():
             'game_pk', 'inning', 'inning_topbot', 'pitch_number', 'at_bat_number', 'batter', 'pitcher'
         ])
 
-        statcast_full = pd.concat(
-            [statcast_full, sc_w_playid], ignore_index=True).drop_duplicates()
         logger.info("Statcast data updated successfully.")
     except Exception as e:
         logger.error(f"Error fetching or processing new data: {e}")
 
-    return statcast_full.drop_duplicates()
+    return sc_w_playid.drop_duplicates()
 
 
 def get_player_names(player_ids):
