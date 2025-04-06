@@ -141,6 +141,8 @@ def get_yesterday_data() -> pd.DataFrame:
 
 
 def get_statcast():
+    sc_w_playid = pd.DataFrame()  # Initialize with empty DataFrame
+
     try:
         yesterday = datetime.today() - timedelta(days=1)
         yesterday_str = yesterday.strftime('%Y-%m-%d')
@@ -159,6 +161,7 @@ def get_statcast():
         logger.info("Statcast data updated successfully.")
     except Exception as e:
         logger.error(f"Error fetching or processing new data: {e}")
+        return pd.DataFrame()  # Return empty DataFrame in case of error
 
     return sc_w_playid.drop_duplicates()
 
