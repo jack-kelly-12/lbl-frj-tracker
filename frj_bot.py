@@ -142,8 +142,10 @@ def get_yesterday_data() -> pd.DataFrame:
 
 def get_statcast():
     try:
-        sc = statcast(time.yesterday().strftime('%Y-%m-%d'),
-                      time.yesterday().strftime('%Y-%m-%d'))
+        yesterday = datetime.today() - timedelta(days=1)
+        yesterday_str = yesterday.strftime('%Y-%m-%d')
+
+        sc = statcast(yesterday_str, yesterday_str)
 
         sc['game_date'] = pd.to_datetime(sc['game_date']).dt.date
         games = sc['game_pk'].unique()
