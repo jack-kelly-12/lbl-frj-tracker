@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from typing import Dict
 import logging
+import time
 from datetime import datetime, timedelta
 from pybaseball import playerid_reverse_lookup, statcast
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -34,7 +35,14 @@ COLUMNS = ['batter_name', 'playId', 'batter',
 # Email configuration
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "jackkelly12902@gmail.com")
 SENDER_PASSWORD = os.environ.get(
-    "SENDER_PASSWORD", "")  # Empty default for security
+    "SENDER_PASSWORD", "")
+if SENDER_PASSWORD == "":
+    if os.environ.get("SEND_EMAIL") == "true":
+        logger.error(
+            "SEND_EMAIL is set to true, but SENDER_PASSWORD is not set. Email will not be sent.")
+        exit(1)
+
+
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 RECIPIENT_EMAILS_STR = os.environ.get(
@@ -134,7 +142,8 @@ def get_yesterday_data() -> pd.DataFrame:
 
 def get_statcast():
     try:
-        sc = statcast()
+        sc = statcast(time.yesterday().strftime('%Y-%m-%d'),
+                      time.yesterday().strftime('%Y-%m-%d'))
 
         sc['game_date'] = pd.to_datetime(sc['game_date']).dt.date
         games = sc['game_pk'].unique()
@@ -327,12 +336,7 @@ def create_daily_report(action_items: pd.DataFrame, frjs: pd.DataFrame, output_f
     )
     elements.append(Paragraph("Daily Longball Labs Report", title_style))
 
-    # Add date range
-    data_date_str = os.environ.get("DATA_DATE", "")
-    if data_date_str:
-        start_date = data_date_str
-    else:
-        start_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    start_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
     date_range = f"From {start_date}"
     date_style = ParagraphStyle(
