@@ -2,8 +2,7 @@ name: Daily Longball Labs Report
 
 on:
   schedule:
-    # Run at 10:00 AM UTC every day (adjust as needed)
-    - cron: "0 10 * * *"
+    - cron: "0 14 * * *"
   workflow_dispatch: # Allow manual trigger
 
 jobs:
