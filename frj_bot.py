@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 URL_FANGRAPHS = "https://www.fangraphs.com/guts.aspx?type=cn"
 # Convert string of comma-separated IDs to list of integers
 LABELED_PLAYERS_STR = "607054,621439,596142,669261,571745,543877,456781,593871,596115,664034,680777,621043,664056"
-LABELED_PLAYERS = [int(player_id.strip())
+LABELED_PLAYERS = [int(player_id.strip()) for player_id in LABELED_PLAYERS_STR.split(',')
                    for player_id in LABELED_PLAYERS_STR.split(',')]
 
 COLUMNS = ['batter_name', 'playId', 'batter',
@@ -231,6 +231,15 @@ def get_action_items(sc: pd.DataFrame) -> pd.DataFrame:
     return result[COLUMNS]
 
 
+def get_client_hrs(sc: pd.DataFrame) -> pd.DataFrame:
+    result = sc[sc['events'].isin(['home_run'])]
+    result = result[result['batter'].isin(LABELED_PLAYERS) |
+                    ((result['inning_topbot'] == 'Top') & (result['away_team'] == 'SD')) |
+                    ((result['inning_topbot'] == 'Bot') & (result['home_team'] == 'SD'))]
+
+    return result[COLUMNS]
+
+
 def create_definitions_page():
     elements = []
     styles = getSampleStyleSheet()
@@ -315,7 +324,7 @@ def create_styled_table(df: pd.DataFrame, title: str):
     return elements
 
 
-def create_daily_report(action_items: pd.DataFrame, frjs: pd.DataFrame, output_filename: str):
+def create_daily_report(action_items: pd.DataFrame, frjs: pd.DataFrame, client_hrs: pd.DataFrame, output_filename: str):
     doc = SimpleDocTemplate(output_filename, pagesize=letter,
                             topMargin=0.5*inch, bottomMargin=0.5*inch)
     elements = []
@@ -362,6 +371,8 @@ def create_daily_report(action_items: pd.DataFrame, frjs: pd.DataFrame, output_f
         action_items, "Action Items (non-clients)"))
     elements.extend(create_styled_table(
         frjs, "FRJs (clients)"))
+    elements.extend(create_styled_table(
+        client_hrs, "HRs (clients)"))
 
     # Build the PDF
     doc.build(elements)
@@ -382,13 +393,14 @@ def main():
     # Get action items and FRJs
     action_items = get_action_items(sc)
     frjs = get_frjs(sc)
+    client_hrs = get_client_hrs(sc)
 
     # Output directory - use environment variable if set
     output_dir = os.environ.get("OUTPUT_DIR", ".")
     os.makedirs(output_dir, exist_ok=True)
 
     output_file = os.path.join(output_dir, 'daily_lbl_report.pdf')
-    create_daily_report(action_items, frjs, output_file)
+    create_daily_report(action_items, frjs, client_hrs, output_file)
     logger.info(f"PDF created successfully: {output_file}")
 
     # Send email if requested
