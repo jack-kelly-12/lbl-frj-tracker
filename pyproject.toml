@@ -1,0 +1,14 @@
+[project]
+name = "lbl-frj-tracker"
+version = "0.1.0"
+description = "Email script to notify about potential marketing opportunities"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "pandas>=3.0.2",
+    "pybaseball>=2.2.7",
+    "reportlab>=4.4.10",
+    "python-dotenv>=1.0.0",
+    "requests>=2.33.1",
+]

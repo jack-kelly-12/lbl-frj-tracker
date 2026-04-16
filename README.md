@@ -97,3 +97,5 @@ If the GitHub Actions workflow fails:
 2. Verify that all required secrets are correctly set
 3. Ensure the Python dependencies are correctly specified in requirements.txt
 4. Check if the Statcast API is returning data as expected
+
+Updated: 2026-04-15
