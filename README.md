@@ -98,4 +98,4 @@ If the GitHub Actions workflow fails:
 3. Ensure the Python dependencies are correctly specified in requirements.txt
 4. Check if the Statcast API is returning data as expected
 
-Updated: 2026-04-18
+Updated: 2026-04-19
